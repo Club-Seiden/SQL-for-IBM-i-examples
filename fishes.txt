@@ -1,0 +1,110 @@
+
+
+set schema "your schema name goes here";
+drop table fishes ;
+create table fishes  (
+	fish_name	for column name	char( 10 ) not null default
+	,fish_color	for column color char(10) not null default
+	,fish_weight	for column weight int not null default
+	);
+alter table fishes add primary key ( name );
+alter table fishes add constraint cst_color check ( name<>color );
+
+insert into fishes	values('haddock' ,'white', 1);
+insert into fishes	values('cod'     ,'green', 2);
+insert into fishes	values('hake'    ,'yellow', 3 );
+insert into fishes	values('mackerel','blue',   4 );
+insert into fishes	values('tench'   ,'orange', 5 );
+insert into fishes	values('sprat'   ,'purple', 6 );
+insert into fishes	values('dace'    ,'fuscia',7 );
+insert into fishes	values('rudd'    ,'maroon',8 );
+insert into fishes	values('pike'    ,'plum',  9 );
+insert into fishes	values('gudgeon' ,'lilac',10);
+insert into fishes	values('white'    ,'white', 11 );  -- violates check constraint CST_COLOR gives error SQL State: 23513
+insert into fishes	values('haddock' ,'magenta', 12);  -- violates unique constraint gives error SQL State: 23505
+select * from fishes order by color ;;
+ 
+
+-- Common table expression 
+
+with a as
+( select row_number() over(order by order of f) - 1  as nb,
+         name                    as name
+    from fishes as f
+), b as
+( select smallint(nb/5)+1       as outrow,
+         smallint(mod(nb,5))+1  as outcol,
+         name                  as name
+    from a
+), c as
+( select outrow,
+         (case when outcol=1 then name else null end) as name1,
+         (case when outcol=2 then name else null end) as name2,
+         (case when outcol=3 then name else null end) as name3,
+         (case when outcol=4 then name else null end) as name4,
+         (case when outcol=5 then name else null end) as name5
+    from b
+)
+select  outrow,
+        max(name1)  col_1,
+        max(name2)  col_2,
+        max(name3)  col_3,
+        max(name4)  col_4,
+        max(name5)  col_5
+   from c
+   group by outrow
+   order by outrow  ;
+
+/*
+The first step gives you an intermediate result of
+
+   rn  fish      
+======  ==========
+     0  haddock
+     1  cod
+     2  hake    
+     3  mackerel
+     4  tench     
+     5  sprat     
+     6  dace      
+     7  rudd      
+     8  pike      
+     9  gudgeon
+
+The next step gives
+
+outrow  outcol  fish      
+======  ======  ==========
+     1       1  haddock
+     1       2  cod
+     1       3  hake    
+     1       4  mackerel
+     1       5  tench     
+     2       1  sprat     
+     2       2  dace      
+     2       3  rudd      
+     2       4  pike      
+     2       5  gudgeon      
+
+Then we spread the values out to separate columns based on the column number
+
+outrow  fish1     fish2     fish3     fish4     fish5
+======  ========  ========  ========  ========  ========
+     1  haddock
+     1            cod
+     1                      hake
+     1                                mackerel
+     1                                          tench
+     2  sprat
+     2            dace
+     2                      rudd
+     2                                pike
+     2                                          gudgeon
+
+The last step squeezes the rows together by outrow number
+
+outrow  col_1     col_2     col_3     col_4     col_5
+======  ========  ========  ========  ========  ========
+     1  haddock   cod       hake      mackerel  tench
+     2  sprat     dace      rudd      pike      gudgeon
+*/
